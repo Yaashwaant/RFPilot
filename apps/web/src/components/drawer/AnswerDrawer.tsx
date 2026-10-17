@@ -14,7 +14,7 @@ interface AnswerDrawerProps {
 
 export const AnswerDrawer: React.FC<AnswerDrawerProps> = ({ adapter }) => {
   const isDrawerOpen = useFlowStore((s) => s.isDrawerOpen);
-  const setDrawerOpen = useFlowStore((s) => s.setDrawerOpen);
+  const closeDrawer = useFlowStore((s) => s.closeDrawer);
   const answerAnchor = useFlowStore((s) => s.answerAnchor);
   const questionAnchor = useFlowStore((s) => s.questionAnchor);
   const questionText = useFlowStore((s) => s.questionText);
@@ -41,7 +41,7 @@ export const AnswerDrawer: React.FC<AnswerDrawerProps> = ({ adapter }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.3 }}
             exit={{ opacity: 0 }}
-            onClick={() => setDrawerOpen(false)}
+            onClick={closeDrawer}
             className="fixed inset-0 bg-slate-900 z-40"
           />
 
@@ -82,7 +82,7 @@ export const AnswerDrawer: React.FC<AnswerDrawerProps> = ({ adapter }) => {
                   </span>
                 )}
                 <button
-                  onClick={() => setDrawerOpen(false)}
+                  onClick={closeDrawer}
                   className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                 >
                   <X className="w-4 h-4" />
@@ -141,7 +141,7 @@ export const AnswerDrawer: React.FC<AnswerDrawerProps> = ({ adapter }) => {
 
             {/* Sticky Actions Footer */}
             <div className="p-5 bg-slate-50/80 border-t border-slate-200">
-              <ReviewActions adapter={adapter} onClose={() => setDrawerOpen(false)} />
+              <ReviewActions adapter={adapter} onClose={closeDrawer} />
             </div>
           </motion.aside>
         </>

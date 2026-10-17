@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { CheckCircle2, Clock, Edit, RotateCcw, ChevronRight, ListFilter } from "lucide-react";
 import { apiListProjectAnswers } from "@/lib/api/client";
 import { CellAnchor, EditorAdapter } from "@/lib/editor/EditorAdapter";
+import { useFlowStore } from "@/lib/flow/flowStore";
 
 interface ActivityListProps {
   projectId: string;
@@ -20,6 +21,7 @@ export const ActivityList: React.FC<ActivityListProps> = ({
 }) => {
   const [answers, setAnswers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const openAnswerReview = useFlowStore((s) => s.openAnswerReview);
 
   useEffect(() => {
     if (isOpen && projectId) {
@@ -61,7 +63,18 @@ export const ActivityList: React.FC<ActivityListProps> = ({
             return (
               <div
                 key={item.id}
-                onClick={() => adapter?.goTo(anchor)}
+                onClick={() => {
+                  adapter?.goTo(anchor);
+                  openAnswerReview({
+                    answerId: item.id,
+                    answerAnchor: anchor,
+                    questionAnchor: item.questionAnchor,
+                    questionText: item.questionText,
+                    text: item.text,
+                    sources: item.sources,
+                    confidence: item.confidence,
+                  });
+                }}
                 className="p-3 bg-slate-50 hover:bg-blue-50/60 border border-slate-200 hover:border-blue-300 rounded-xl transition-all cursor-pointer group"
               >
                 <div className="flex items-center justify-between text-xs mb-1">

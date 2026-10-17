@@ -4,12 +4,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { useFlowStore } from "@/lib/flow/flowStore";
 import { OnlyOfficeExcelAdapter } from "@/lib/editor/OnlyOfficeExcelAdapter";
 import { useJobStream } from "@/lib/api/useJobStream";
-import { apiCreateJob, apiGetProjectSheetData } from "@/lib/api/client";
+import { apiCreateJob, apiGetProjectSheetData, apiListProjectAnswers } from "@/lib/api/client";
 import { AddAnswerButton } from "./AddAnswerButton";
 import { StepBanner } from "./StepBanner";
 import { AnswerDrawer } from "../drawer/AnswerDrawer";
 import { ActivityList } from "../activity/ActivityList";
-import { FileSpreadsheet, History, Download, ArrowLeft, Loader2 } from "lucide-react";
+import { FileSpreadsheet, History, Download, ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 interface EditorHostProps {
@@ -31,6 +31,7 @@ export const EditorHost: React.FC<EditorHostProps> = ({
   const [sheetData, setSheetData] = useState<any>(null);
   const [activeSheetIndex, setActiveSheetIndex] = useState<number>(0);
   const [loadingSheet, setLoadingSheet] = useState<boolean>(true);
+  const [answersByAddress, setAnswersByAddress] = useState<Record<string, any>>({});
   const containerRef = useRef<HTMLDivElement>(null);
 
   const state = useFlowStore((s) => s.state);
@@ -38,8 +39,11 @@ export const EditorHost: React.FC<EditorHostProps> = ({
   const questionAnchor = useFlowStore((s) => s.questionAnchor);
   const questionText = useFlowStore((s) => s.questionText);
   const streamedText = useFlowStore((s) => s.streamedText);
+  const answerId = useFlowStore((s) => s.answerId);
   const setQuestion = useFlowStore((s) => s.setQuestion);
   const startGeneration = useFlowStore((s) => s.startGeneration);
+  const openAnswerReview = useFlowStore((s) => s.openAnswerReview);
+  const closeDrawer = useFlowStore((s) => s.closeDrawer);
   const setError = useFlowStore((s) => s.setError);
   const [renderTick, setRenderTick] = useState(0);
 
@@ -99,6 +103,59 @@ export const EditorHost: React.FC<EditorHostProps> = ({
     };
   }, [adapter, editorConfig]);
 
+  // Load and synchronize project answers for in-situ review
+  const refreshAnswers = async () => {
+    if (!projectId) return;
+    try {
+      const list = await apiListProjectAnswers(projectId);
+      const map: Record<string, any> = {};
+      for (const ans of list) {
+        if (ans.answerAnchor?.address) {
+          map[ans.answerAnchor.address] = ans;
+          if (ans.text) {
+            adapter.writeCell(ans.answerAnchor, ans.text, {
+              applyAiTint: ans.status !== "ACCEPTED",
+              wrapText: true,
+            });
+          }
+        }
+      }
+      setAnswersByAddress(map);
+    } catch (err) {
+      console.warn("Could not load project answers:", err);
+    }
+  };
+
+  useEffect(() => {
+    refreshAnswers();
+  }, [projectId, answerId]);
+
+  const handleOpenAnswerForCell = (address: string) => {
+    const ans = answersByAddress[address];
+    if (ans) {
+      openAnswerReview({
+        answerId: ans.id,
+        answerAnchor: ans.answerAnchor,
+        questionAnchor: ans.questionAnchor,
+        questionText: ans.questionText,
+        text: ans.text,
+        sources: ans.sources,
+        confidence: ans.confidence,
+      });
+    } else {
+      const stored = adapter.getStoredCell(address);
+      if (stored.value) {
+        openAnswerReview({
+          answerId: "cell-" + address,
+          answerAnchor: { sheet: currentSheet?.name || "Sheet1", address },
+          text: stored.value,
+          sources: [],
+          confidence: "HIGH",
+        });
+      }
+    }
+  };
+
   // Handle cell selection click in interactive grid
   const handleCellClick = async (address: string, currentSheetName: string) => {
     const anchor = { sheet: currentSheetName, address };
@@ -109,6 +166,9 @@ export const EditorHost: React.FC<EditorHostProps> = ({
     if (state === "PICK_QUESTION") {
       const text = await adapter.readCell(anchor);
       setQuestion(anchor, text);
+    } else if (state === "REVIEW" && address !== answerAnchor?.address) {
+      // If user clicks another cell while reviewing, close previous drawer and reset to IDLE
+      closeDrawer();
     }
   };
 
@@ -215,7 +275,12 @@ export const EditorHost: React.FC<EditorHostProps> = ({
           <StepBanner onGo={handleGo} />
 
           {/* Floating In-Situ Add Answer Button */}
-          <AddAnswerButton adapter={adapter} />
+          <AddAnswerButton
+            adapter={adapter}
+            activeCell={activeCell}
+            existingAnswer={answersByAddress[activeCell]}
+            onReviewAnswer={() => handleOpenAnswerForCell(activeCell)}
+          />
 
           {/* Spreadsheet Canvas */}
           <div
@@ -292,7 +357,8 @@ export const EditorHost: React.FC<EditorHostProps> = ({
                             const isTarget = answerAnchor?.address === addr;
                             const isStreamingTarget = isTarget && (state === "GENERATING" || state === "REVIEW");
                             const displayValue = isStreamingTarget && streamedText ? streamedText : (stored.value || cell.value);
-                            const hasAiTint = stored.background === "#E8F0FE" || isTarget;
+                            const existingAns = answersByAddress[addr];
+                            const hasAiTint = stored.background === "#E8F0FE" || isTarget || (existingAns && existingAns.status !== "ACCEPTED");
                             const isCellSelected = activeCell === addr;
                             const isQuestionTarget = questionAnchor?.address === addr;
 
@@ -338,9 +404,18 @@ export const EditorHost: React.FC<EditorHostProps> = ({
                                 )}
 
                                 {hasAiTint && (
-                                  <span className="absolute top-1 right-1 px-1 py-0.5 bg-blue-600 text-white text-[8px] font-bold rounded shadow-2xs">
-                                    AI DRAFT
-                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenAnswerForCell(addr);
+                                    }}
+                                    className="absolute top-1 right-1 px-1.5 py-0.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-[8px] font-bold rounded shadow-2xs flex items-center gap-1 cursor-pointer z-10 transition-transform"
+                                    title="Click to view AI answer and verified citations"
+                                  >
+                                    <Sparkles className="w-2.5 h-2.5" />
+                                    <span>{existingAns?.status || "AI DRAFT"}</span>
+                                  </button>
                                 )}
                               </td>
                             );

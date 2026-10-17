@@ -43,6 +43,16 @@ interface FlowStore {
   setError: (message: string) => void;
   clearError: () => void;
   setDrawerOpen: (open: boolean) => void;
+  closeDrawer: () => void;
+  openAnswerReview: (payload: {
+    answerId: string;
+    answerAnchor: CellAnchor;
+    questionAnchor?: CellAnchor | null;
+    questionText?: string;
+    text: string;
+    sources?: SourceCitation[];
+    confidence?: "HIGH" | "MEDIUM" | "LOW" | null;
+  }) => void;
   updateAnswerText: (newText: string) => void;
   resetToIdle: () => void;
 }
@@ -141,8 +151,29 @@ export const useFlowStore = create<FlowStore>((set) => ({
     }),
 
   setDrawerOpen: (open) =>
-    set({
+    set((s) => ({
       isDrawerOpen: open,
+      state: open ? s.state : "IDLE",
+    })),
+
+  closeDrawer: () =>
+    set({
+      isDrawerOpen: false,
+      state: "IDLE",
+    }),
+
+  openAnswerReview: (payload) =>
+    set({
+      state: "REVIEW",
+      isDrawerOpen: true,
+      answerId: payload.answerId,
+      answerAnchor: payload.answerAnchor,
+      questionAnchor: payload.questionAnchor || null,
+      questionText: payload.questionText || "",
+      streamedText: payload.text,
+      sources: payload.sources || [],
+      confidence: payload.confidence || "HIGH",
+      errorMessage: null,
     }),
 
   updateAnswerText: (newText) =>
