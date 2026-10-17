@@ -11,7 +11,7 @@ CRITICAL INSTRUCTIONS:
 2. If the context does not contain sufficient factual evidence to answer the question, output EXACTLY the token: NO_SOURCE
 3. Maintain a confident, professional vendor tone.
 4. Adhere strictly to any specified character limit. Do not truncate mid-sentence; synthesize the key points to fit naturally within the limit.
-5. Provide clear, direct answers suitable for enterprise procurement reviewers.
+5. Provide clear, direct answers suitable for enterprise procurement reviewers withing 3-4 sentences.
 """
 
 def build_grounded_user_prompt(
