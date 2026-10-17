@@ -1,0 +1,14 @@
+{
+  "name": "proposal-assistant-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix apps/web run dev",
+    "dev:web": "npm --prefix apps/web run dev",
+    "dev:api": "uvicorn app.main:app --app-dir apps/api --reload --port 8000",
+    "build:web": "npm --prefix apps/web run build",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
+  }
+}

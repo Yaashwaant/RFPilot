@@ -1,0 +1,160 @@
+# Proposal Assistant – Docker Compose (Local Development)
+# Starts: web, api, worker, postgres, redis, minio, onlyoffice
+
+services:
+  # ─── PostgreSQL + pgvector ───────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: pa-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: proposal_assistant
+      POSTGRES_USER: pa_user
+      POSTGRES_PASSWORD: pa_secret_dev
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pa_user -d proposal_assistant"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ─── Redis (Queue + Pub/Sub) ─────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: pa-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ─── MinIO (S3-compatible Object Storage) ────────────
+  minio:
+    image: minio/minio:latest
+    container_name: pa-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"    # API
+      - "9001:9001"    # Console
+    environment:
+      MINIO_ROOT_USER: minio_user
+      MINIO_ROOT_PASSWORD: minio_secret_dev
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── MinIO Init (Create default bucket) ──────────────
+  minio-init:
+    image: minio/mc:latest
+    container_name: pa-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 minio_user minio_secret_dev;
+        mc mb --ignore-existing local/proposal-assistant;
+        mc anonymous set download local/proposal-assistant/public;
+        echo 'Bucket ready';
+      "
+
+  # ─── ONLYOFFICE Document Server ─────────────────────
+  onlyoffice:
+    image: onlyoffice/documentserver:8.2
+    container_name: pa-onlyoffice
+    restart: unless-stopped
+    ports:
+      - "8443:443"
+      - "8080:80"
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: onlyoffice_jwt_secret_dev
+      JWT_HEADER: Authorization
+      JWT_IN_BODY: "false"
+    volumes:
+      - oo_data:/var/www/onlyoffice/Data
+      - oo_logs:/var/log/onlyoffice
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  # ─── FastAPI Backend ─────────────────────────────────
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: pa-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://pa_user:pa_secret_dev@postgres:5432/proposal_assistant
+      REDIS_URL: redis://redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minio_user
+      MINIO_SECRET_KEY: minio_secret_dev
+      MINIO_BUCKET: proposal-assistant
+      MINIO_USE_SSL: "false"
+      ONLYOFFICE_URL: http://onlyoffice
+      ONLYOFFICE_JWT_SECRET: onlyoffice_jwt_secret_dev
+      JWT_SECRET: app_jwt_secret_dev_change_in_prod
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ENVIRONMENT: development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./apps/api:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ─── Celery Worker ───────────────────────────────────
+  worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: pa-worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://pa_user:pa_secret_dev@postgres:5432/proposal_assistant
+      REDIS_URL: redis://redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minio_user
+      MINIO_SECRET_KEY: minio_secret_dev
+      MINIO_BUCKET: proposal-assistant
+      MINIO_USE_SSL: "false"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ENVIRONMENT: development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/api:/app
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
+
+volumes:
+  pg_data:
+  minio_data:
+  oo_data:
+  oo_logs:
