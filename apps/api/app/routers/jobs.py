@@ -170,7 +170,7 @@ async def stream_job(
 
         # Step 2: Retrieve relevant collateral
         candidates = await hybrid_retrieve(job.workspace_id, job.question_text, db)
-        passages, confidence, has_source = rerank_and_filter(candidates)
+        passages, confidence, has_source = await rerank_and_filter(candidates, question=job.question_text)
 
         if not has_source:
             # Enforce zero-hallucination guardrail

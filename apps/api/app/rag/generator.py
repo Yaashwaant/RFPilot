@@ -1,33 +1,32 @@
 """
 Proposal Assistant – Grounded LLM Generator
 Streams tokens with strict citation-grounding and character limit enforcement.
+Supports live streaming via OpenRouter (Claude, etc.) with automatic fallback
+to grounded local synthesis when no API key is supplied.
 """
 import asyncio
-from typing import AsyncGenerator, List, Optional, Tuple
+import json
+import logging
+from typing import AsyncGenerator, List, Optional
+import httpx
 
 from app.core.config import get_settings
-from app.rag.prompts import build_grounded_user_prompt
+from app.rag.prompts import GROUNDED_SYSTEM_PROMPT, build_grounded_user_prompt
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
-async def stream_grounded_answer(
+async def _synthesize_local_grounded_answer(
     question: str,
     passages: List[dict],
     char_limit: Optional[int] = None,
-    section_label: Optional[str] = None,
-    tone: str = "professional",
-) -> AsyncGenerator[str, None]:
-    """
-    Yields incremental token chunks for the generated answer.
-    Enforces grounding, character limits, and smooth streaming.
-    """
-    # 1. Synthesize base answer from grounded passages
+) -> str:
+    """Deterministic, domain-aligned grounded synthesis fallback."""
     primary = passages[0]
     snippet = primary.get("snippet", "")
     doc_name = primary.get("doc", "Collateral")
 
-    # Construct contextual, vendor-grade response directly rooted in the source snippet
     q_low = question.lower()
     if "sso" in q_low or "sign-in" in q_low or "sign in" in q_low or "saml" in q_low or "authentication" in q_low:
         full_text = (
@@ -107,10 +106,8 @@ async def stream_grounded_answer(
             "and automated Data Subject Access Request (DSAR) workflows."
         )
     else:
-        # Grounded synthesis from snippet
         full_text = f"Compliant. As detailed in {doc_name} ({primary.get('section', 'General')}), our enterprise architecture fully supports this requirement: {snippet[:240]}."
 
-    # Enforce character limit if specified
     if char_limit and len(full_text) > char_limit:
         truncated_at = full_text[:char_limit].rfind(".")
         if truncated_at > char_limit // 2:
@@ -118,9 +115,96 @@ async def stream_grounded_answer(
         else:
             full_text = full_text[: char_limit - 3] + "..."
 
-    # Stream out tokens with realistic micro-delays (simulating LLM token delivery)
-    words = full_text.split(" ")
-    for i, word in enumerate(words):
-        chunk = word if i == len(words) - 1 else word + " "
-        yield chunk
-        await asyncio.sleep(0.04)  # 40ms per token cluster
+    return full_text
+
+
+async def stream_grounded_answer(
+    question: str,
+    passages: List[dict],
+    char_limit: Optional[int] = None,
+    section_label: Optional[str] = None,
+    tone: str = "professional",
+) -> AsyncGenerator[str, None]:
+    """
+    Yields incremental token chunks for the generated answer.
+    Streams directly from OpenRouter when OPENROUTER_API_KEY is configured;
+    falls back cleanly to grounded template generation if no key is set or on network failure.
+    """
+    api_key = settings.OPENROUTER_API_KEY.strip() if settings.OPENROUTER_API_KEY else ""
+    llm_model = settings.OPENROUTER_LLM_MODEL or "anthropic/claude-3.5-sonnet"
+    base_url = settings.OPENROUTER_BASE_URL or "https://openrouter.ai/api"
+
+    streamed_any = False
+
+    if api_key:
+        prompt = build_grounded_user_prompt(
+            question=question,
+            context_passages=passages,
+            char_limit=char_limit,
+            section_label=section_label,
+            tone=tone,
+        )
+
+        payload = {
+            "model": llm_model,
+            "messages": [
+                {"role": "system", "content": GROUNDED_SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": 0.2,
+            "max_tokens": min(settings.LLM_MAX_TOKENS, 1500),
+            "stream": True,
+        }
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "HTTP-Referer": settings.OPENROUTER_SITE_URL,
+            "X-Title": settings.OPENROUTER_APP_NAME,
+            "Content-Type": "application/json",
+        }
+
+        chat_url = f"{base_url.rstrip('/')}/v1/chat/completions"
+
+        try:
+            async with httpx.AsyncClient(timeout=35.0) as client:
+                async with client.stream("POST", chat_url, json=payload, headers=headers) as resp:
+                    if resp.status_code == 200:
+                        async for line in resp.aiter_lines():
+                            if not line:
+                                continue
+                            if line.startswith("data: "):
+                                data_str = line[6:].strip()
+                                if data_str == "[DONE]":
+                                    break
+                                try:
+                                    chunk = json.loads(data_str)
+                                    choices = chunk.get("choices", [])
+                                    if choices:
+                                        delta = choices[0].get("delta", {})
+                                        token = delta.get("content")
+                                        if token:
+                                            streamed_any = True
+                                            yield token
+                                except Exception:
+                                    continue
+                    else:
+                        logger.warning(
+                            "OpenRouter chat completions returned HTTP %d: %s",
+                            resp.status_code,
+                            await resp.aread(),
+                        )
+        except Exception as e:
+            logger.warning("Error streaming from OpenRouter: %s", e)
+
+    # If OpenRouter was not configured or produced zero tokens, run the grounded synthesis fallback
+    if not streamed_any:
+        fallback_text = await _synthesize_local_grounded_answer(
+            question=question,
+            passages=passages,
+            char_limit=char_limit,
+        )
+        words = fallback_text.split(" ")
+        for i, word in enumerate(words):
+            chunk = word if i == len(words) - 1 else word + " "
+            yield chunk
+            await asyncio.sleep(0.035)  # 35ms simulated token latency

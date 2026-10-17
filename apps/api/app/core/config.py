@@ -39,6 +39,14 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # ─── OpenRouter & Jev AI ─────────────────────────
+    OPENROUTER_API_KEY: str = ""
+    OPENROUTER_BASE_URL: str = "https://openrouter.ai/api"
+    OPENROUTER_JEV_MODEL: str = "typesafe/jev-latest"
+    OPENROUTER_LLM_MODEL: str = "anthropic/claude-3.5-sonnet"
+    OPENROUTER_SITE_URL: str = "http://localhost:3000"
+    OPENROUTER_APP_NAME: str = "RFPilot"
+
     # ─── LLM / Embeddings ────────────────────────────
     ANTHROPIC_API_KEY: str = ""
     EMBEDDING_MODEL: str = "text-embedding-3-large"
@@ -58,9 +66,10 @@ class Settings(BaseSettings):
     ALLOWED_FILE_TYPES: list[str] = ["xlsx", "docx", "pptx", "pdf", "txt"]
 
     model_config = {
-        "env_file": ".env",
+        "env_file": (".env", "apps/api/.env", "../.env"),
         "env_file_encoding": "utf-8",
         "case_sensitive": True,
+        "extra": "ignore",
     }
 
 
