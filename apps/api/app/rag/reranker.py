@@ -1,17 +1,17 @@
 """
 Proposal Assistant – Reranker & Guardrail Scorer
-Uses TypeSafe Jev AI decision model via OpenRouter Decisions API
+Uses TypeSafe Jev AI decision model via OpenRouter
 to evaluate passage relevance, filter candidates, and enforce guardrails.
 """
 import asyncio
+import json
 import logging
 from typing import List, Tuple
 import httpx
 
-from app.core.config import get_settings
+from app.core.config import Settings
 
 logger = logging.getLogger(__name__)
-settings = get_settings()
 
 MIN_RELEVANCE_THRESHOLD = 0.60
 
@@ -25,10 +25,18 @@ async def _score_single_candidate_jev(
     base_url: str,
 ) -> float:
     """
-    Invokes TypeSafe Jev AI decision model via OpenRouter Decisions API.
+    Invokes TypeSafe Jev AI decision model via OpenRouter.
     Evaluates whether the candidate collateral passage factually supports the question.
     Returns: probability score between 0.0 and 1.0.
     """
+    headers = {
+        "Authorization": f"Bearer {api_key.strip()}",
+        "HTTP-Referer": "http://localhost:3000",
+        "X-Title": "RFPilot",
+        "Content-Type": "application/json",
+    }
+
+    # First attempt: OpenRouter alpha decisions endpoint
     state_text = (
         f"RFP Requirement Question:\n{question}\n\n"
         f"Candidate Collateral Passage:\n"
@@ -37,7 +45,7 @@ async def _score_single_candidate_jev(
         f"Content:\n{candidate.get('snippet', candidate.get('content', ''))}"
     )
 
-    payload = {
+    payload_decisions = {
         "model": model,
         "state": state_text,
         "questions": {
@@ -51,16 +59,10 @@ async def _score_single_candidate_jev(
         },
     }
 
-    url = f"{base_url.rstrip('/')}/alpha/decisions"
-    headers = {
-        "Authorization": f"Bearer {api_key.strip()}",
-        "HTTP-Referer": settings.OPENROUTER_SITE_URL,
-        "X-Title": settings.OPENROUTER_APP_NAME,
-        "Content-Type": "application/json",
-    }
+    url_decisions = f"{base_url.rstrip('/')}/alpha/decisions"
 
     try:
-        response = await client.post(url, json=payload, headers=headers, timeout=6.0)
+        response = await client.post(url_decisions, json=payload_decisions, headers=headers, timeout=5.0)
         if response.status_code == 200:
             data = response.json()
             answers = data.get("answers", {})
@@ -71,15 +73,43 @@ async def _score_single_candidate_jev(
                     return float(score)
             elif isinstance(q_res, (int, float)):
                 return float(q_res)
-            logger.warning("Unexpected Jev response format: %s", data)
-        else:
-            logger.warning(
-                "OpenRouter Jev API returned status %d: %s",
-                response.status_code,
-                response.text[:200],
-            )
+    except Exception:
+        pass
+
+    # Second attempt: Chat completions structured evaluation (works with typesafe/jev-router)
+    prompt = (
+        "You are an expert RFP compliance evaluator. Evaluate whether the collateral passage below factually supports and provides evidence for the requirement question.\n\n"
+        f"RFP Requirement Question: {question}\n\n"
+        f"Collateral Document: {candidate.get('doc')} | Section: {candidate.get('section')}\n"
+        f"Content: {candidate.get('snippet')}\n\n"
+        'Return strictly valid JSON with keys: "is_relevant" (boolean) and "confidence" (float between 0.0 and 1.0).'
+    )
+    chat_payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "response_format": {"type": "json_object"},
+        "max_tokens": 50,
+        "temperature": 0.0,
+    }
+    chat_url = f"{base_url.rstrip('/')}/v1/chat/completions"
+
+    try:
+        r = await client.post(chat_url, json=chat_payload, headers=headers, timeout=5.0)
+        if r.status_code == 200:
+            choice = r.json().get("choices", [{}])[0]
+            msg = choice.get("message", {})
+            content = msg.get("content") or msg.get("reasoning") or ""
+            start = content.find("{")
+            end = content.rfind("}")
+            if start != -1 and end != -1:
+                parsed = json.loads(content[start : end + 1])
+                conf = float(parsed.get("confidence", 0.5))
+                is_rel = bool(parsed.get("is_relevant", True))
+                return conf if is_rel else conf * 0.2
+            elif "true" in content.lower():
+                return 0.90
     except Exception as e:
-        logger.warning("Error invoking OpenRouter Jev decision model: %s", e)
+        logger.warning("Error evaluating with Jev AI: %s", e)
 
     # Fallback to candidate's existing retrieval score
     return float(candidate.get("score", 0.0))
@@ -100,14 +130,14 @@ async def rerank_and_filter(
     if not candidates:
         return [], "LOW", False
 
-    api_key = settings.OPENROUTER_API_KEY.strip() if settings.OPENROUTER_API_KEY else ""
-    model = settings.OPENROUTER_JEV_MODEL or "typesafe/jev-latest"
-    base_url = settings.OPENROUTER_BASE_URL or "https://openrouter.ai/api"
+    current_settings = Settings()
+    api_key = current_settings.OPENROUTER_API_KEY.strip() if current_settings.OPENROUTER_API_KEY else ""
+    model = current_settings.OPENROUTER_JEV_MODEL or "typesafe/jev-router"
+    base_url = current_settings.OPENROUTER_BASE_URL or "https://openrouter.ai/api"
 
     # If OpenRouter API Key is available and a question is provided, evaluate with Jev AI
     if api_key and question.strip():
-        # Evaluate up to top 12 candidates concurrently
-        eval_pool = candidates[:12]
+        eval_pool = candidates[:8]
         async with httpx.AsyncClient() as client:
             tasks = [
                 _score_single_candidate_jev(

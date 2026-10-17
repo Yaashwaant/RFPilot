@@ -44,6 +44,7 @@ export const EditorHost: React.FC<EditorHostProps> = ({
   const startGeneration = useFlowStore((s) => s.startGeneration);
   const openAnswerReview = useFlowStore((s) => s.openAnswerReview);
   const closeDrawer = useFlowStore((s) => s.closeDrawer);
+  const startFlow = useFlowStore((s) => s.startFlow);
   const setError = useFlowStore((s) => s.setError);
   const [renderTick, setRenderTick] = useState(0);
 
@@ -215,6 +216,81 @@ export const EditorHost: React.FC<EditorHostProps> = ({
     return "120px";
   };
 
+  // Instant 1-click Add Answer: auto-detect question from current row or prompt selection
+  const handleAddAnswer = async () => {
+    if (state !== "IDLE") return;
+    const selection = await adapter.getSelection();
+    if (!selection) return;
+
+    // Detect question in same row:
+    const match = selection.address.match(/^([A-Z]+)(\d+)$/);
+    let detectedQuestionAnchor: any = null;
+    let detectedQuestionText = "";
+    let targetAnswerAnchor = selection;
+
+    if (match && currentSheet) {
+      const col = match[1];
+      const rowNum = parseInt(match[2], 10);
+      const rowObj = currentSheet.rows?.find((r: any) => r.row_num === rowNum);
+
+      if (rowObj) {
+        if (col === "C") {
+          // User clicked the Question cell itself! Target answer is in column E
+          const colE = rowObj.cells?.find((c: any) => c.col === "E");
+          if (colE) {
+            targetAnswerAnchor = { sheet: currentSheet.name, address: colE.address };
+          }
+          const colC = rowObj.cells?.find((c: any) => c.col === "C");
+          if (colC && colC.value) {
+            detectedQuestionAnchor = { sheet: currentSheet.name, address: colC.address };
+            detectedQuestionText = colC.value;
+          }
+        } else {
+          // User clicked Response or other column. Question is in column C
+          const colC = rowObj.cells?.find((c: any) => c.col === "C" && c.value);
+          if (colC && colC.value.length > 3) {
+            detectedQuestionAnchor = { sheet: currentSheet.name, address: colC.address };
+            detectedQuestionText = colC.value;
+          } else {
+            // Find any cell in this row that has text > 5 characters
+            const otherCells = rowObj.cells?.filter((c: any) => c.address !== selection.address && c.value && c.value.length > 5);
+            if (otherCells && otherCells.length > 0) {
+              const best = otherCells.sort((a: any, b: any) => b.value.length - a.value.length)[0];
+              detectedQuestionAnchor = { sheet: currentSheet.name, address: best.address };
+              detectedQuestionText = best.value;
+            }
+          }
+        }
+      }
+    }
+
+    const snapshot = await adapter.snapshotCell(targetAnswerAnchor);
+
+    if (detectedQuestionAnchor && detectedQuestionText) {
+      // Auto-detected question! Trigger LLM generation directly!
+      try {
+        startFlow(targetAnswerAnchor, snapshot);
+        setQuestion(detectedQuestionAnchor, detectedQuestionText);
+        const res = await apiCreateJob(projectId, {
+          questionText: detectedQuestionText,
+          questionAnchor: detectedQuestionAnchor,
+          answerAnchor: targetAnswerAnchor,
+          context: {
+            columnHeaders: ["Requirement", "Compliance", "Response"],
+            sectionLabel: "RFP Requirements",
+            charLimit: 1000,
+          },
+        });
+        startGeneration(res.jobId);
+      } catch (err: any) {
+        setError(err?.message || "Failed to start answer generation.");
+      }
+    } else {
+      // Prompt user to pick question cell
+      startFlow(targetAnswerAnchor, snapshot);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen w-full bg-slate-100 overflow-hidden font-sans">
       {/* Top Header Chrome */}
@@ -280,6 +356,7 @@ export const EditorHost: React.FC<EditorHostProps> = ({
             activeCell={activeCell}
             existingAnswer={answersByAddress[activeCell]}
             onReviewAnswer={() => handleOpenAnswerForCell(activeCell)}
+            onAddAnswer={handleAddAnswer}
           />
 
           {/* Spreadsheet Canvas */}

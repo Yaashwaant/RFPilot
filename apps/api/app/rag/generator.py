@@ -130,13 +130,16 @@ async def stream_grounded_answer(
     Streams directly from OpenRouter when OPENROUTER_API_KEY is configured;
     falls back cleanly to grounded template generation if no key is set or on network failure.
     """
-    api_key = settings.OPENROUTER_API_KEY.strip() if settings.OPENROUTER_API_KEY else ""
-    llm_model = settings.OPENROUTER_LLM_MODEL or "anthropic/claude-3.5-sonnet"
-    base_url = settings.OPENROUTER_BASE_URL or "https://openrouter.ai/api"
+    from app.core.config import Settings
+    current_settings = Settings()
+    api_key = current_settings.OPENROUTER_API_KEY.strip() if current_settings.OPENROUTER_API_KEY else ""
+    llm_model = current_settings.OPENROUTER_LLM_MODEL or "anthropic/claude-sonnet-4.5"
+    base_url = current_settings.OPENROUTER_BASE_URL or "https://openrouter.ai/api"
 
     streamed_any = False
 
     if api_key:
+        logger.info("Initiating OpenRouter LLM stream with model=%s", llm_model)
         prompt = build_grounded_user_prompt(
             question=question,
             context_passages=passages,

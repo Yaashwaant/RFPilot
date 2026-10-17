@@ -10,6 +10,7 @@ interface AddAnswerButtonProps {
   activeCell?: string;
   existingAnswer?: any;
   onReviewAnswer?: () => void;
+  onAddAnswer?: () => void;
 }
 
 export const AddAnswerButton: React.FC<AddAnswerButtonProps> = ({
@@ -17,6 +18,7 @@ export const AddAnswerButton: React.FC<AddAnswerButtonProps> = ({
   activeCell,
   existingAnswer,
   onReviewAnswer,
+  onAddAnswer,
 }) => {
   const state = useFlowStore((s) => s.state);
   const startFlow = useFlowStore((s) => s.startFlow);
@@ -26,6 +28,11 @@ export const AddAnswerButton: React.FC<AddAnswerButtonProps> = ({
 
     if (existingAnswer && onReviewAnswer) {
       onReviewAnswer();
+      return;
+    }
+
+    if (onAddAnswer) {
+      onAddAnswer();
       return;
     }
 

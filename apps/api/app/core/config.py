@@ -42,8 +42,8 @@ class Settings(BaseSettings):
     # ─── OpenRouter & Jev AI ─────────────────────────
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api"
-    OPENROUTER_JEV_MODEL: str = "typesafe/jev-latest"
-    OPENROUTER_LLM_MODEL: str = "anthropic/claude-3.5-sonnet"
+    OPENROUTER_JEV_MODEL: str = "typesafe/jev-router"
+    OPENROUTER_LLM_MODEL: str = "anthropic/claude-sonnet-4.5"
     OPENROUTER_SITE_URL: str = "http://localhost:3000"
     OPENROUTER_APP_NAME: str = "RFPilot"
 
