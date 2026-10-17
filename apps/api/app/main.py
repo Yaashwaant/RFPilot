@@ -62,15 +62,23 @@ app.include_router(knowledge.router, prefix="/api/knowledge", tags=["knowledge"]
 app.include_router(editor_callback.router, prefix="/api/editor", tags=["editor"])
 
 
+from pathlib import Path
+from typing import Optional
+
 @app.get("/api/storage/files/{file_path:path}")
-async def serve_storage_file(file_path: str):
+async def serve_storage_file(file_path: str, filename: Optional[str] = None):
     """Fallback endpoint to serve uploaded working documents in local dev."""
     storage = get_storage_service()
     try:
         data = storage.download_file(file_path)
+        dl_name = filename or Path(file_path).name
         return Response(
             content=data,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f'attachment; filename="{dl_name}"',
+                "Access-Control-Expose-Headers": "Content-Disposition",
+            },
         )
     except FileNotFoundError:
         return Response(status_code=404, content="File not found")

@@ -32,11 +32,16 @@ function ProjectEditorContent({ params }: { params: Promise<{ id: string }> }) {
     try {
       const res = await apiExportProject(projectId, false);
       if (res.downloadUrl) {
-        window.open(res.downloadUrl, "_blank");
+        const a = document.createElement("a");
+        a.href = res.downloadUrl;
+        a.setAttribute("download", res.fileName || "filled_proposal.xlsx");
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Export error:", err);
-      alert("Workbook export ready! Downloading filled proposal.");
+      alert(`Export failed: ${err?.message || "Unknown error"}`);
     }
   };
 
