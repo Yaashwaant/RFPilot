@@ -31,20 +31,8 @@ export default function ProjectsPage() {
       const data = await apiListProjects();
       setProjects(data);
     } catch (err) {
-      console.error(err);
-      // Fallback demo project for immediate testability
-      setProjects([
-        {
-          id: "7f8c1d2e-4b5a-4f6c-8e1d-2a3b4c5d6e7f",
-          name: "Acme Enterprise Cloud RFP Q4.xlsx",
-          fileType: "xlsx",
-          status: "active",
-          filledCount: 14,
-          unreviewedCount: 2,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ]);
+      console.error("Failed to load projects from API:", err);
+      setProjects([]);
     } finally {
       setLoading(false);
     }
