@@ -13,6 +13,7 @@ from app.core.dependencies import get_current_user, get_db
 from app.models.models import Answer, AnswerJob, AppUser, Project
 from app.schemas.answer_dto import AnswerPatch, AnswerResponse
 from app.schemas.job_dto import CellAnchor, JobResponse, SourceItem
+from app.services.memory_service import get_memory_service
 
 router = APIRouter()
 
@@ -54,6 +55,33 @@ async def patch_answer(
 
     await db.commit()
     await db.refresh(answer)
+
+    # ─── Mem0 Continuous Learning ──────────────────────────────────────────
+    if answer.status in {"ACCEPTED", "EDITED"} and answer.text:
+        try:
+            job_stmt = select(AnswerJob).where(AnswerJob.id == answer.job_id)
+            job_res = await db.execute(job_stmt)
+            job_obj = job_res.scalars().first()
+            question_text = job_obj.question_text if job_obj else ""
+
+            ms = get_memory_service()
+            if ms.is_available and question_text:
+                await ms.add_memory(
+                    messages_or_text=[
+                        {"role": "user", "content": question_text},
+                        {"role": "assistant", "content": answer.text},
+                    ],
+                    user_id=str(current_user.id),
+                    project_id=str(answer.project_id),
+                    metadata={
+                        "type": "approved_rfp_answer",
+                        "status": answer.status,
+                        "project_id": str(answer.project_id),
+                        "answer_id": str(answer.id),
+                    },
+                )
+        except Exception:
+            pass
 
     sources_list = [SourceItem(**s) for s in (answer.sources or [])]
     return AnswerResponse(

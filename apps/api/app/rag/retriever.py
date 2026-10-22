@@ -99,12 +99,32 @@ async def hybrid_retrieve(
     query: str,
     db: AsyncSession,
     top_k: int = 10,
+    user_id: Optional[UUID] = None,
+    project_id: Optional[UUID] = None,
 ) -> List[dict]:
     """
     Retrieves top passages from the workspace's Knowledge Base.
-    Uses database chunks when available, and augments with enterprise collateral.
+    Augments database chunks and enterprise collateral with continuous institutional memories from Mem0.
     """
     candidates = []
+
+    # 0. Query Mem0 Institutional Memory (continuous learning layer)
+    try:
+        from app.services.memory_service import get_memory_service
+        ms = get_memory_service()
+        if ms.is_available:
+            u_str = str(user_id) if user_id else None
+            p_str = str(project_id) if project_id else None
+            mem_items = await ms.search_memory(query=query, user_id=u_str, project_id=p_str, limit=3)
+            for m in mem_items:
+                candidates.append({
+                    "doc": "Institutional Memory (Mem0)",
+                    "section": "Approved Proposal Standard",
+                    "snippet": m["memory"],
+                    "score": round(min(0.98, max(0.88, m.get("score", 0.90))), 3),
+                })
+    except Exception:
+        pass
 
     # 1. Query database KB chunks
     try:

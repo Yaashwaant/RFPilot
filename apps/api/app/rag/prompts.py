@@ -12,6 +12,7 @@ CRITICAL INSTRUCTIONS:
 3. Maintain a confident, professional vendor tone.
 4. Adhere strictly to any specified character limit. Do not truncate mid-sentence; synthesize the key points to fit naturally within the limit.
 5. Provide clear, direct answers suitable for enterprise procurement reviewers withing 3-4 sentences.
+6. When Institutional Memory or approved proposal standards are provided in context, prioritize their verified terminology to maintain enterprise consistency.
 """
 
 def build_grounded_user_prompt(

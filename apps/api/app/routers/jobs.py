@@ -168,8 +168,14 @@ async def stream_job(
         # Step 1: Send initial heartbeat
         yield f"event: heartbeat\ndata: {json.dumps({'ts': int(datetime.now(timezone.utc).timestamp())})}\n\n"
 
-        # Step 2: Retrieve relevant collateral
-        candidates = await hybrid_retrieve(job.workspace_id, job.question_text, db)
+        # Step 2: Retrieve relevant collateral (including continuous institutional memories from Mem0)
+        candidates = await hybrid_retrieve(
+            workspace_id=job.workspace_id,
+            query=job.question_text,
+            db=db,
+            user_id=job.created_by,
+            project_id=job.project_id,
+        )
         passages, confidence, has_source = await rerank_and_filter(candidates, question=job.question_text)
 
         if not has_source:

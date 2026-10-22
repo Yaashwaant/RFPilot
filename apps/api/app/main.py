@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
-from app.routers import auth, projects, jobs, answers, knowledge, editor_callback
+from app.routers import auth, projects, jobs, answers, knowledge, editor_callback, memory
 
 settings = get_settings()
 
@@ -59,6 +59,7 @@ app.include_router(projects.router, prefix="/api/projects", tags=["projects"])
 app.include_router(jobs.router, prefix="/api", tags=["jobs"])
 app.include_router(answers.router, prefix="/api/answers", tags=["answers"])
 app.include_router(knowledge.router, prefix="/api/knowledge", tags=["knowledge"])
+app.include_router(memory.router, prefix="/api/memory", tags=["memory"])
 app.include_router(editor_callback.router, prefix="/api/editor", tags=["editor"])
 
 

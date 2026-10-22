@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     OPENROUTER_SITE_URL: str = "http://localhost:3000"
     OPENROUTER_APP_NAME: str = "RFPilot"
 
+    # ─── Mem0 Memory Layer ────────────────────────────
+    MEM0_API_KEY: str = ""
+    MEM0_ENABLED: bool = True
+    MEM0_STORAGE_PATH: str = "data/mem0_storage"
+    MEM0_COLLECTION_NAME: str = "proposal_memories"
+
     # ─── LLM / Embeddings ────────────────────────────
     ANTHROPIC_API_KEY: str = ""
     EMBEDDING_MODEL: str = "text-embedding-3-large"

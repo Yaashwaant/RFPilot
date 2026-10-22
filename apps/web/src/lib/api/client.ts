@@ -217,3 +217,32 @@ export async function apiDeleteKnowledge(id: string) {
     method: "DELETE",
   });
 }
+
+// ─── Mem0 Memory API ────────────────────────────────────────────────────────
+
+export async function apiListMemories(projectId?: string): Promise<any[]> {
+  const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
+  return apiFetch<any[]>(`/api/memory${query}`);
+}
+
+export async function apiCreateMemory(text: string, projectId?: string): Promise<any> {
+  return apiFetch<any>("/api/memory", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, projectId: projectId || null }),
+  });
+}
+
+export async function apiDeleteMemory(memoryId: string): Promise<any> {
+  return apiFetch<any>(`/api/memory/${encodeURIComponent(memoryId)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function apiSearchMemories(query: string, projectId?: string): Promise<any[]> {
+  return apiFetch<any[]>("/api/memory/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query, projectId: projectId || null, limit: 5 }),
+  });
+}
