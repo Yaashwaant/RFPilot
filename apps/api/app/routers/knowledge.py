@@ -57,20 +57,23 @@ async def upload_knowledge_doc(
     db.add(doc)
     await db.flush()
 
-    # Simple semantic text chunker
+    # Semantic text extraction
     extracted_text = ""
     try:
         if ext in {".txt", ".md"}:
             extracted_text = content.decode("utf-8", errors="ignore")
         elif ext == ".pdf":
-            # Basic PDF extraction or fallback text extraction
-            extracted_text = content.decode("latin-1", errors="ignore")
+            import io
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(content))
+            pages = [p.extract_text() for p in reader.pages if p.extract_text()]
+            extracted_text = "\n\n".join(pages)
         else:
             extracted_text = f"Content extracted from {filename} for enterprise RFP knowledge base grounding."
     except Exception:
         extracted_text = f"Document content from {filename}."
 
-    # Split into ~400 character chunks with overlap
+    # Split into ~400 character chunks with overlap for database
     chunk_size = 400
     overlap = 50
     chunks = []
@@ -106,6 +109,27 @@ async def upload_knowledge_doc(
     doc.status = "READY"
     await db.commit()
     await db.refresh(doc)
+
+    # ─── Ingest into Mem0 Persistent Memory ─────────────────────────────────
+    try:
+        from app.services.memory_service import get_memory_service
+        ms = get_memory_service()
+        if ms.is_available and extracted_text.strip():
+            chunk_len = 1000
+            for i in range(0, min(len(extracted_text), 8000), chunk_len):
+                sub_text = extracted_text[i : i + chunk_len].strip()
+                if len(sub_text) > 30:
+                    await ms.add_memory(
+                        messages_or_text=f"Document '{filename}':\n{sub_text}",
+                        user_id=str(current_user.id),
+                        metadata={
+                            "doc_id": str(doc.id),
+                            "filename": filename,
+                            "type": "uploaded_knowledge_doc",
+                        },
+                    )
+    except Exception:
+        pass
 
     return KnowledgeDocResponse(
         id=doc.id,
