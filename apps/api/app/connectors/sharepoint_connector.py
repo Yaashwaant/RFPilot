@@ -79,13 +79,14 @@ class SharePointConnector(BaseConnector):
             return None
 
     async def test_connection(self, config: Dict[str, Any]) -> Tuple[bool, str]:
-        tenant_id = config.get("tenant_id", "").strip()
-        client_id = config.get("client_id", "").strip()
-        client_secret = config.get("client_secret", "").strip()
-        site_id = config.get("site_id", "").strip()
+        import os
+        tenant_id = config.get("tenant_id", "").strip() or os.environ.get("SHAREPOINT_TENANT_ID", "").strip()
+        client_id = config.get("client_id", "").strip() or os.environ.get("SHAREPOINT_CLIENT_ID", "").strip()
+        client_secret = config.get("client_secret", "").strip() or os.environ.get("SHAREPOINT_CLIENT_SECRET", "").strip()
+        site_id = config.get("site_id", "").strip() or os.environ.get("SHAREPOINT_SITE_ID", "").strip()
 
         if not all([tenant_id, client_id, client_secret, site_id]):
-            return False, "Tenant ID, Client ID, Client Secret, and Site ID are required."
+            return False, "Tenant ID, Client ID, Client Secret, and Site ID are required (provide in UI or set in .env)."
 
         try:
             token = await self._get_access_token(tenant_id, client_id, client_secret)
@@ -104,10 +105,11 @@ class SharePointConnector(BaseConnector):
             return False, f"SharePoint connection error: {str(e)}"
 
     async def fetch_documents(self, config: Dict[str, Any]) -> List[IngestedItem]:
-        tenant_id = config.get("tenant_id", "").strip()
-        client_id = config.get("client_id", "").strip()
-        client_secret = config.get("client_secret", "").strip()
-        site_id = config.get("site_id", "").strip()
+        import os
+        tenant_id = config.get("tenant_id", "").strip() or os.environ.get("SHAREPOINT_TENANT_ID", "").strip()
+        client_id = config.get("client_id", "").strip() or os.environ.get("SHAREPOINT_CLIENT_ID", "").strip()
+        client_secret = config.get("client_secret", "").strip() or os.environ.get("SHAREPOINT_CLIENT_SECRET", "").strip()
+        site_id = config.get("site_id", "").strip() or os.environ.get("SHAREPOINT_SITE_ID", "").strip()
 
         token = await self._get_access_token(tenant_id, client_id, client_secret)
         if not token:

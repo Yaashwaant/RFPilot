@@ -74,12 +74,13 @@ class ConfluenceConnector(BaseConnector):
         }
 
     async def test_connection(self, config: Dict[str, Any]) -> Tuple[bool, str]:
-        base_url = config.get("base_url", "").strip().rstrip("/")
-        email = config.get("email", "").strip()
-        api_token = config.get("api_token", "").strip()
+        import os
+        base_url = (config.get("base_url", "").strip() or os.environ.get("CONFLUENCE_BASE_URL", "").strip()).rstrip("/")
+        email = config.get("email", "").strip() or os.environ.get("CONFLUENCE_EMAIL", "").strip()
+        api_token = config.get("api_token", "").strip() or os.environ.get("CONFLUENCE_API_TOKEN", "").strip()
 
         if not base_url or not email or not api_token:
-            return False, "Base URL, Email, and API Token are all required."
+            return False, "Base URL, Email, and API Token are all required (provide in UI or set in .env)."
 
         api_endpoint = f"{base_url}/rest/api/user/current"
         try:
@@ -94,10 +95,11 @@ class ConfluenceConnector(BaseConnector):
             return False, f"Failed to connect to Confluence at {base_url}: {str(e)}"
 
     async def fetch_documents(self, config: Dict[str, Any]) -> List[IngestedItem]:
-        base_url = config.get("base_url", "").strip().rstrip("/")
-        email = config.get("email", "").strip()
-        api_token = config.get("api_token", "").strip()
-        space_key = config.get("space_key", "").strip()
+        import os
+        base_url = (config.get("base_url", "").strip() or os.environ.get("CONFLUENCE_BASE_URL", "").strip()).rstrip("/")
+        email = config.get("email", "").strip() or os.environ.get("CONFLUENCE_EMAIL", "").strip()
+        api_token = config.get("api_token", "").strip() or os.environ.get("CONFLUENCE_API_TOKEN", "").strip()
+        space_key = config.get("space_key", "").strip() or os.environ.get("CONFLUENCE_SPACE_KEY", "").strip()
 
         headers = self._get_headers(email, api_token)
         items: List[IngestedItem] = []

@@ -49,11 +49,12 @@ class GoogleDriveConnector(BaseConnector):
         ]
 
     async def test_connection(self, config: Dict[str, Any]) -> Tuple[bool, str]:
-        token_or_key = config.get("access_token_or_key", "").strip()
-        folder_id = config.get("folder_id", "").strip()
+        import os
+        token_or_key = config.get("access_token_or_key", "").strip() or os.environ.get("GOOGLE_DRIVE_API_KEY", "").strip()
+        folder_id = config.get("folder_id", "").strip() or os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "").strip()
 
         if not token_or_key or not folder_id:
-            return False, "API Key/Token and Folder/File ID are required."
+            return False, "API Key/Token and Folder/File ID are required (provide in UI or set in .env)."
 
         headers = {}
         params = {}
@@ -76,8 +77,9 @@ class GoogleDriveConnector(BaseConnector):
             return False, f"Failed to connect to Google Drive: {str(e)}"
 
     async def fetch_documents(self, config: Dict[str, Any]) -> List[IngestedItem]:
-        token_or_key = config.get("access_token_or_key", "").strip()
-        folder_id = config.get("folder_id", "").strip()
+        import os
+        token_or_key = config.get("access_token_or_key", "").strip() or os.environ.get("GOOGLE_DRIVE_API_KEY", "").strip()
+        folder_id = config.get("folder_id", "").strip() or os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "").strip()
 
         headers = {}
         params = {}

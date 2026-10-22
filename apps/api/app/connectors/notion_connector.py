@@ -54,9 +54,10 @@ class NotionConnector(BaseConnector):
         }
 
     async def test_connection(self, config: Dict[str, Any]) -> Tuple[bool, str]:
-        api_key = config.get("api_key", "").strip()
+        import os
+        api_key = config.get("api_key", "").strip() or os.environ.get("NOTION_API_KEY", "").strip()
         if not api_key:
-            return False, "Notion Integration Secret is required."
+            return False, "Notion Integration Secret is required (provide in UI or set NOTION_API_KEY in .env)."
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -70,7 +71,8 @@ class NotionConnector(BaseConnector):
             return False, f"Connection failed to Notion API: {str(e)}"
 
     async def fetch_documents(self, config: Dict[str, Any]) -> List[IngestedItem]:
-        api_key = config.get("api_key", "").strip()
+        import os
+        api_key = config.get("api_key", "").strip() or os.environ.get("NOTION_API_KEY", "").strip()
         headers = self._get_headers(api_key)
         items: List[IngestedItem] = []
 

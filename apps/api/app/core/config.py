@@ -53,6 +53,20 @@ class Settings(BaseSettings):
     MEM0_STORAGE_PATH: str = "data/mem0_storage"
     MEM0_COLLECTION_NAME: str = "proposal_memories"
 
+    # ─── Optional Enterprise Connectors ───────────────
+    NOTION_API_KEY: str = ""
+    NOTION_PAGE_ID: str = ""
+    CONFLUENCE_BASE_URL: str = ""
+    CONFLUENCE_EMAIL: str = ""
+    CONFLUENCE_API_TOKEN: str = ""
+    CONFLUENCE_SPACE_KEY: str = ""
+    GOOGLE_DRIVE_API_KEY: str = ""
+    GOOGLE_DRIVE_FOLDER_ID: str = ""
+    SHAREPOINT_TENANT_ID: str = ""
+    SHAREPOINT_CLIENT_ID: str = ""
+    SHAREPOINT_CLIENT_SECRET: str = ""
+    SHAREPOINT_SITE_ID: str = ""
+
     # ─── LLM / Embeddings ────────────────────────────
     ANTHROPIC_API_KEY: str = ""
     EMBEDDING_MODEL: str = "text-embedding-3-large"
