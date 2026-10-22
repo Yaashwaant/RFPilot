@@ -246,3 +246,52 @@ export async function apiSearchMemories(query: string, projectId?: string): Prom
     body: JSON.stringify({ query, projectId: projectId || null, limit: 5 }),
   });
 }
+
+// ─── Enterprise Connectors API ──────────────────────────────────────────────
+
+export async function apiListConnectors(): Promise<any[]> {
+  return apiFetch<any[]>("/api/connectors");
+}
+
+export async function apiTestConnector(connectorId: string, config: Record<string, any>): Promise<any> {
+  return apiFetch<any>(`/api/connectors/${encodeURIComponent(connectorId)}/test`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ config }),
+  });
+}
+
+export async function apiSyncConnector(
+  connectorId: string,
+  config: Record<string, any>,
+  projectId?: string
+): Promise<any> {
+  return apiFetch<any>(`/api/connectors/${encodeURIComponent(connectorId)}/sync`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ config, projectId: projectId || null }),
+  });
+}
+
+export async function apiUploadPastRfp(file: File, projectId?: string): Promise<any> {
+  let token = await getAuthToken();
+  const formData = new FormData();
+  formData.append("file", file);
+  if (projectId) formData.append("projectId", projectId);
+
+  let res = await fetch(`${API_BASE}/api/connectors/upload-past-rfp`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  if (!res.ok) {
+    let errMsg = "Failed to upload past RFP.";
+    try {
+      const errData = await res.json();
+      errMsg = errData?.detail?.error?.message || errData?.detail || errMsg;
+    } catch {}
+    throw new Error(errMsg);
+  }
+  return res.json();
+}
