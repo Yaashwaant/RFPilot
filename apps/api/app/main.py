@@ -27,10 +27,20 @@ async def lifespan(app: FastAPI):
         async def init_tables():
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
-        await asyncio.wait_for(init_tables(), timeout=5.0)
+        await asyncio.wait_for(init_tables(), timeout=4.0)
         print("✅ Database tables verified/initialized", flush=True)
     except Exception as e:
-        print(f"⚠️ Database initialization note: {e}", flush=True)
+        print(f"⚠️ Database initialization note: {e}. Ensuring tables via SQLite...", flush=True)
+        try:
+            from app.core.database import _build_sqlite_engine
+            import app.core.database as db_mod
+            db_mod.engine, db_mod.async_session_factory, _ = _build_sqlite_engine()
+            db_mod.use_sqlite = True
+            async with db_mod.engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            print("✅ Embedded SQLite tables initialized successfully", flush=True)
+        except Exception as sq_err:
+            print(f"⚠️ SQLite fallback note: {sq_err}", flush=True)
     yield
     # Shutdown
     print(f"🛑 {settings.APP_NAME} shutting down", flush=True)
