@@ -2,8 +2,9 @@
  * Proposal Assistant – Typed API Client
  * Interfaces with FastAPI backend with bearer token authorization.
  */
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL !== undefined
+  ? process.env.NEXT_PUBLIC_API_URL
+  : (typeof window !== "undefined" ? "" : (process.env.INTERNAL_API_URL || "http://127.0.0.1:8000"));
 
 export async function getAuthToken(): Promise<string | null> {
   if (typeof window === "undefined") return null;
