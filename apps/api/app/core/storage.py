@@ -24,20 +24,21 @@ class StorageService:
 
     def __init__(self):
         self.minio_available = False
-        try:
-            self.client = Minio(
-                settings.MINIO_ENDPOINT,
-                access_key=settings.MINIO_ACCESS_KEY,
-                secret_key=settings.MINIO_SECRET_KEY,
-                secure=settings.MINIO_USE_SSL,
-            )
-            self.bucket = settings.MINIO_BUCKET
-            # Check if bucket exists or can connect
-            if not self.client.bucket_exists(self.bucket):
-                self.client.make_bucket(self.bucket)
-            self.minio_available = True
-        except Exception:
-            self.minio_available = False
+        provider = os.getenv("STORAGE_PROVIDER", "local").lower()
+        if provider in ("s3", "minio"):
+            try:
+                self.client = Minio(
+                    settings.MINIO_ENDPOINT,
+                    access_key=settings.MINIO_ACCESS_KEY,
+                    secret_key=settings.MINIO_SECRET_KEY,
+                    secure=settings.MINIO_USE_SSL,
+                )
+                self.bucket = settings.MINIO_BUCKET
+                if not self.client.bucket_exists(self.bucket):
+                    self.client.make_bucket(self.bucket)
+                self.minio_available = True
+            except Exception:
+                self.minio_available = False
 
     def upload_file(
         self,

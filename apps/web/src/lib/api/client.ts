@@ -105,10 +105,15 @@ export async function apiCreateProject(file: File, name?: string) {
   }
 
   if (!res.ok) {
-    let errMsg = "Failed to upload project workbook.";
+    let errMsg = `Failed to upload project workbook (HTTP ${res.status})`;
     try {
-      const errData = await res.json();
-      errMsg = errData?.detail?.error?.message || errData?.detail || errMsg;
+      const text = await res.text();
+      try {
+        const errData = JSON.parse(text);
+        errMsg = errData?.detail?.error?.message || (typeof errData?.detail === 'string' ? errData.detail : JSON.stringify(errData?.detail)) || errMsg;
+      } catch {
+        if (text) errMsg = `Server error (${res.status}): ${text.slice(0, 150)}`;
+      }
     } catch {}
     throw new Error(errMsg);
   }
@@ -199,10 +204,15 @@ export async function apiUploadKnowledge(file: File) {
   }
 
   if (!res.ok) {
-    let errMsg = "Failed to upload knowledge document.";
+    let errMsg = `Failed to upload knowledge document (HTTP ${res.status})`;
     try {
-      const errData = await res.json();
-      errMsg = errData?.detail?.error?.message || errData?.detail || errMsg;
+      const text = await res.text();
+      try {
+        const errData = JSON.parse(text);
+        errMsg = errData?.detail?.error?.message || (typeof errData?.detail === 'string' ? errData.detail : JSON.stringify(errData?.detail)) || errMsg;
+      } catch {
+        if (text) errMsg = `Server error (${res.status}): ${text.slice(0, 150)}`;
+      }
     } catch {}
     throw new Error(errMsg);
   }
