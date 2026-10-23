@@ -21,16 +21,19 @@ from app.core.storage import get_storage_service
 async def lifespan(app: FastAPI):
     """Application lifecycle: startup and shutdown hooks."""
     # Startup
-    print(f"🚀 {settings.APP_NAME} starting ({settings.ENVIRONMENT})")
+    print(f"🚀 {settings.APP_NAME} starting ({settings.ENVIRONMENT})", flush=True)
     try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        print("✅ Database tables verified/initialized")
+        import asyncio
+        async def init_tables():
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+        await asyncio.wait_for(init_tables(), timeout=5.0)
+        print("✅ Database tables verified/initialized", flush=True)
     except Exception as e:
-        print(f"⚠️ Database initialization note: {e}")
+        print(f"⚠️ Database initialization note: {e}", flush=True)
     yield
     # Shutdown
-    print(f"🛑 {settings.APP_NAME} shutting down")
+    print(f"🛑 {settings.APP_NAME} shutting down", flush=True)
 
 
 app = FastAPI(

@@ -3,28 +3,25 @@ set -e
 
 echo "🚀 Starting FastAPI Backend on 0.0.0.0:8000..."
 cd /app/backend
-python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/uvicorn.log 2>&1 &
+export PYTHONPATH="/app/backend:${PYTHONPATH:-}"
+
+# Start uvicorn with LIVE stdout and stderr output
+python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 &
 API_PID=$!
 
-# Wait for FastAPI to accept connections
+echo "Waiting for FastAPI to accept connections on port 8000..."
 READY=0
-for i in $(seq 1 40); do
-    if curl -s http://127.0.0.1:8000/docs > /dev/null 2>&1; then
-        echo "✅ FastAPI Backend is online and ready!"
+for i in $(seq 1 30); do
+    if curl -s http://127.0.0.1:8000/api/health > /dev/null 2>&1; then
+        echo "✅ FastAPI Backend is online and ready on port 8000!"
         READY=1
         break
     fi
-    if ! kill -0 $API_PID 2>/dev/null; then
-        echo "❌ FastAPI process exited unexpectedly! Recent logs:"
-        cat /tmp/uvicorn.log
-        exit 1
-    fi
-    sleep 0.5
+    sleep 1
 done
 
 if [ "$READY" -eq 0 ]; then
-    echo "⚠️ Warning: FastAPI took longer than 20s to respond. Recent logs:"
-    cat /tmp/uvicorn.log
+    echo "⚠️ Warning: FastAPI health check did not pass within 30s."
 fi
 
 echo "🌐 Starting Next.js Frontend on 0.0.0.0:${PORT:-3000}..."
