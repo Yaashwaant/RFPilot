@@ -107,8 +107,8 @@ class StorageService:
             except Exception:
                 pass
 
-        # Return mock / direct download URL
-        return f"http://localhost:8000/api/storage/files/{key}"
+        # Return same-origin relative download URL
+        return f"/api/storage/files/{key}"
 
     def delete_file(self, key: str) -> None:
         """Deletes a file from object storage or local disk."""

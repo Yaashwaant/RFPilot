@@ -32,8 +32,12 @@ function ProjectEditorContent({ params }: { params: Promise<{ id: string }> }) {
     try {
       const res = await apiExportProject(projectId, false);
       if (res.downloadUrl) {
+        let url = res.downloadUrl;
+        if (url.includes("localhost:8000") && typeof window !== "undefined" && window.location.hostname !== "localhost") {
+          url = url.replace(/^http:\/\/localhost:8000/, "");
+        }
         const a = document.createElement("a");
-        a.href = res.downloadUrl;
+        a.href = url;
         a.setAttribute("download", res.fileName || "filled_proposal.xlsx");
         document.body.appendChild(a);
         a.click();
