@@ -11,7 +11,7 @@ import {
   updateProfile,
   User,
 } from "firebase/auth";
-import { auth, googleProvider } from "./config";
+import { getFirebaseAuth } from "./config";
 
 export interface AuthSession {
   accessToken: string;
@@ -63,6 +63,7 @@ async function exchangeFirebaseToken(user: User): Promise<AuthSession> {
  * Sign in or Sign up with Google OAuth.
  */
 export async function signInWithGoogle(): Promise<AuthSession> {
+  const { auth, googleProvider } = await getFirebaseAuth();
   const result = await signInWithPopup(auth, googleProvider);
   return await exchangeFirebaseToken(result.user);
 }
@@ -75,6 +76,7 @@ export async function signUpWithEmail(
   pass: string,
   displayName: string
 ): Promise<AuthSession> {
+  const { auth } = await getFirebaseAuth();
   const result = await createUserWithEmailAndPassword(auth, email, pass);
   if (displayName) {
     try {
@@ -91,6 +93,7 @@ export async function signInWithEmail(
   email: string,
   pass: string
 ): Promise<AuthSession> {
+  const { auth } = await getFirebaseAuth();
   const result = await signInWithEmailAndPassword(auth, email, pass);
   return await exchangeFirebaseToken(result.user);
 }
@@ -100,6 +103,7 @@ export async function signInWithEmail(
  */
 export async function signOutUser(): Promise<void> {
   try {
+    const { auth } = await getFirebaseAuth();
     await fbSignOut(auth);
   } catch {}
   if (typeof window !== "undefined") {

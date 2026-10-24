@@ -304,3 +304,21 @@ async def firebase_auth_endpoint(
         email=user.email,
     )
 
+
+@router.get("/firebase-config")
+async def get_firebase_public_config():
+    """
+    Returns public Firebase configuration for client SDK initialization.
+    Safe for public consumption; contains no secret private keys.
+    """
+    import os
+    return {
+        "apiKey": os.getenv("NEXT_PUBLIC_FIREBASE_API_KEY") or os.getenv("FIREBASE_API_KEY", ""),
+        "authDomain": os.getenv("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN") or os.getenv("FIREBASE_AUTH_DOMAIN", ""),
+        "projectId": os.getenv("NEXT_PUBLIC_FIREBASE_PROJECT_ID") or os.getenv("FIREBASE_PROJECT_ID", ""),
+        "storageBucket": os.getenv("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET") or os.getenv("FIREBASE_STORAGE_BUCKET", ""),
+        "messagingSenderId": os.getenv("NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID") or os.getenv("FIREBASE_MESSAGING_SENDER_ID", ""),
+        "appId": os.getenv("NEXT_PUBLIC_FIREBASE_APP_ID") or os.getenv("FIREBASE_APP_ID", ""),
+    }
+
+
