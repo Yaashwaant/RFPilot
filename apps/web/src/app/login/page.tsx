@@ -259,40 +259,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Quick Demo Bypass */}
-          <div className="mt-6 pt-5 border-t border-slate-800 text-center">
-            <button
-              type="button"
-              onClick={async () => {
-                setLoading(true);
-                try {
-                  const res = await fetch("/api/auth/seed-dev", { method: "POST" });
-                  if (res.ok) {
-                    const data = await res.json();
-                    localStorage.setItem("proposal_assistant_token", data.access_token);
-                    localStorage.setItem(
-                      "proposal_assistant_user",
-                      JSON.stringify({
-                        accessToken: data.access_token,
-                        userId: data.user_id,
-                        workspaceId: data.workspace_id,
-                        name: data.name,
-                        email: data.email,
-                      })
-                    );
-                    router.push("/projects");
-                  }
-                } catch {
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              className="text-xs text-slate-400 hover:text-blue-400 transition-colors cursor-pointer"
-            >
-              ⚡ Explore with Demo Account (Skip Login)
-            </button>
-          </div>
         </div>
 
         {/* Security Badge */}

@@ -8,52 +8,34 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL !== undefined
 
 export async function getAuthToken(): Promise<string | null> {
   if (typeof window === "undefined") return null;
-  let token = localStorage.getItem("proposal_assistant_token");
-  if (!token) {
-    try {
-      const res = await fetch(`${API_BASE}/api/auth/seed-dev`, { method: "POST" });
-      if (res.ok) {
-        const data = await res.json();
-        token = data.access_token;
-        if (token) localStorage.setItem("proposal_assistant_token", token);
-      }
-    } catch {}
-  }
-  return token;
+  return localStorage.getItem("proposal_assistant_token");
 }
 
 export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  let token = await getAuthToken();
+  const token = await getAuthToken();
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string>),
   };
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
+  } else if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+    window.location.href = "/login";
+    throw new Error("Authentication required. Redirecting to login...");
   }
 
-  let res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
     headers,
   });
 
-  // If unauthorized (e.g. expired dev token), refresh token once and retry
+  // If unauthorized, clear invalid session and redirect to /login
   if (res.status === 401 && typeof window !== "undefined") {
-    try {
-      const seedRes = await fetch(`${API_BASE}/api/auth/seed-dev`, { method: "POST" });
-      if (seedRes.ok) {
-        const data = await seedRes.json();
-        token = data.access_token;
-        if (token) {
-          localStorage.setItem("proposal_assistant_token", token);
-          headers["Authorization"] = `Bearer ${token}`;
-          res = await fetch(`${API_BASE}${endpoint}`, {
-            ...options,
-            headers,
-          });
-        }
-      }
-    } catch {}
+    localStorage.removeItem("proposal_assistant_token");
+    localStorage.removeItem("proposal_assistant_user");
+    if (!window.location.pathname.startsWith("/login")) {
+      window.location.href = "/login";
+    }
   }
 
   if (!res.ok) {

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   FileSpreadsheet,
   Upload,
@@ -18,6 +19,7 @@ import { apiListProjects, apiCreateProject } from "@/lib/api/client";
 import UserNav from "@/components/UserNav";
 
 export default function ProjectsPage() {
+  const router = useRouter();
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -40,8 +42,13 @@ export default function ProjectsPage() {
   };
 
   useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("proposal_assistant_token") : null;
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
     loadProjects();
-  }, []);
+  }, [router]);
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();

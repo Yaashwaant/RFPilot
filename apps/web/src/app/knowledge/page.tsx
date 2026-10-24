@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   BookOpen,
   ArrowLeft,
@@ -45,6 +46,7 @@ import {
 import UserNav from "@/components/UserNav";
 
 export default function KnowledgePage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"docs" | "memory" | "connectors">("docs");
 
   // Document state
@@ -137,10 +139,15 @@ export default function KnowledgePage() {
   };
 
   useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("proposal_assistant_token") : null;
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
     loadDocs();
     loadMemories();
     loadConnectors();
-  }, []);
+  }, [router]);
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();

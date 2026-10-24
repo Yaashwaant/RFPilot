@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useEffect, useState, use, Suspense } from "react";
+import { useRouter } from "next/navigation";
 import { EditorHost } from "@/components/document-box/EditorHost";
 import { apiGetProject, apiExportProject } from "@/lib/api/client";
 import { Loader2 } from "lucide-react";
 
 function ProjectEditorContent({ params }: { params: Promise<{ id: string }> }) {
+  const router = useRouter();
   const resolvedParams = use(params);
   const projectId = resolvedParams.id;
 
@@ -13,20 +15,21 @@ function ProjectEditorContent({ params }: { params: Promise<{ id: string }> }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("proposal_assistant_token") : null;
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
     if (projectId) {
       apiGetProject(projectId)
         .then(setProject)
         .catch((err) => {
-          console.warn("Using local project harness:", err);
-          setProject({
-            id: projectId,
-            name: "Enterprise RFP Q4.xlsx",
-            status: "active",
-          });
+          console.error("Failed to load project:", err);
+          router.replace("/projects");
         })
         .finally(() => setLoading(false));
     }
-  }, [projectId]);
+  }, [projectId, router]);
 
   const handleExport = async () => {
     try {
