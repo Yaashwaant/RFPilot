@@ -53,6 +53,7 @@ async function exchangeFirebaseToken(user: User): Promise<AuthSession> {
   if (typeof window !== "undefined") {
     localStorage.setItem("proposal_assistant_token", session.accessToken);
     localStorage.setItem("proposal_assistant_user", JSON.stringify(session));
+    document.cookie = `proposal_assistant_token=${encodeURIComponent(session.accessToken)}; path=/; max-age=2592000; SameSite=Lax`;
   }
 
   return session;
@@ -104,6 +105,7 @@ export async function signOutUser(): Promise<void> {
   if (typeof window !== "undefined") {
     localStorage.removeItem("proposal_assistant_token");
     localStorage.removeItem("proposal_assistant_user");
+    document.cookie = "proposal_assistant_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     window.location.href = "/login";
   }
 }

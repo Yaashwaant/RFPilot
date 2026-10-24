@@ -31,6 +31,13 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("proposal_assistant_token") : null;
+    if (token) {
+      router.replace("/projects");
+    }
+  }, [router]);
+
   const handleGoogleAuth = async () => {
     setError(null);
     setGoogleLoading(true);

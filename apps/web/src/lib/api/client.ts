@@ -33,6 +33,7 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
   if (res.status === 401 && typeof window !== "undefined") {
     localStorage.removeItem("proposal_assistant_token");
     localStorage.removeItem("proposal_assistant_user");
+    document.cookie = "proposal_assistant_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     if (!window.location.pathname.startsWith("/login")) {
       window.location.href = "/login";
     }
