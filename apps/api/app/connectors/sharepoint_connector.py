@@ -5,7 +5,7 @@ via Microsoft Graph API to ingest Word documents, Excel workbooks, and PDFs into
 """
 import io
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import httpx
 from pypdf import PdfReader
 
