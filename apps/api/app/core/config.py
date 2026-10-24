@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     FIREBASE_PROJECT_ID: str = "rfpilot-ce416"
     FIREBASE_CREDENTIALS_PATH: str = "firebase_service_account.json"
     FIREBASE_SERVICE_ACCOUNT_JSON: str = ""
+    FIREBASE_CLIENT_EMAIL: str = ""
+    FIREBASE_PRIVATE_KEY: str = ""
 
     # ─── OpenRouter & Jev AI ─────────────────────────
     OPENROUTER_API_KEY: str = ""

@@ -185,7 +185,28 @@ def _ensure_firebase_app():
         except Exception:
             pass
 
-    # 2. File path to service account credentials
+    # 2. Individual credentials from environment
+    client_email = os.getenv("FIREBASE_CLIENT_EMAIL") or settings.FIREBASE_CLIENT_EMAIL
+    private_key = os.getenv("FIREBASE_PRIVATE_KEY") or settings.FIREBASE_PRIVATE_KEY
+    project_id = os.getenv("FIREBASE_PROJECT_ID") or settings.FIREBASE_PROJECT_ID
+    if client_email and private_key:
+        try:
+            formatted_key = private_key.replace("\\n", "\n")
+            cred_dict = {
+                "type": "service_account",
+                "project_id": project_id,
+                "private_key": formatted_key,
+                "client_email": client_email,
+                "token_uri": "https://oauth2.googleapis.com/token",
+            }
+            cred = credentials.Certificate(cred_dict)
+            firebase_admin.initialize_app(cred)
+            _firebase_initialized = True
+            return
+        except Exception:
+            pass
+
+    # 3. File path to service account credentials
     cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH") or settings.FIREBASE_CREDENTIALS_PATH
     candidate_paths = [
         cred_path,
