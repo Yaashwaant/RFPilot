@@ -42,6 +42,7 @@ import {
   apiSyncConnector,
   apiUploadPastRfp,
 } from "@/lib/api/client";
+import UserNav from "@/components/UserNav";
 
 export default function KnowledgePage() {
   const [activeTab, setActiveTab] = useState<"docs" | "memory" | "connectors">("docs");
@@ -340,6 +341,10 @@ export default function KnowledgePage() {
               <span>Connectors ({connectors.length})</span>
             </button>
           </div>
+
+          <div className="h-5 w-px bg-slate-200" />
+
+          <UserNav />
         </div>
       </nav>
 

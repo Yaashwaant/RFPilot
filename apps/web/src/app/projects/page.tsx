@@ -15,6 +15,7 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { apiListProjects, apiCreateProject } from "@/lib/api/client";
+import UserNav from "@/components/UserNav";
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -93,6 +94,10 @@ export default function ProjectsPage() {
             <Plus className="w-4 h-4" />
             <span>Upload RFP (.xlsx)</span>
           </button>
+
+          <div className="h-5 w-px bg-slate-200" />
+
+          <UserNav />
         </div>
       </nav>
 

@@ -30,6 +30,7 @@ next-env.d.ts
 .env.production.local
 *.pem
 *.key
+*firebase*.json
 
 # Local Data, Storage & Logs
 logs/

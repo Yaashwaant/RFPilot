@@ -36,8 +36,11 @@ class Settings(BaseSettings):
     # ─── Auth ─────────────────────────────────────────
     JWT_SECRET: str = "app_jwt_secret_dev_change_in_prod"
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    FIREBASE_PROJECT_ID: str = "rfpilot-ce416"
+    FIREBASE_CREDENTIALS_PATH: str = "firebase_service_account.json"
+    FIREBASE_SERVICE_ACCOUNT_JSON: str = ""
 
     # ─── OpenRouter & Jev AI ─────────────────────────
     OPENROUTER_API_KEY: str = ""

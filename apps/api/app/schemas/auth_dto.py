@@ -18,6 +18,10 @@ class UserLogin(BaseModel):
     password: str
 
 
+class FirebaseAuthRequest(BaseModel):
+    idToken: str = Field(..., description="Firebase Auth ID Token (JWT) from client SDK.")
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
