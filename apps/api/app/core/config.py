@@ -38,8 +38,8 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
-    FIREBASE_PROJECT_ID: str = "rfpilot-ce416"
-    FIREBASE_CREDENTIALS_PATH: str = "firebase_service_account.json"
+    FIREBASE_PROJECT_ID: str = ""
+    FIREBASE_CREDENTIALS_PATH: str = ""
     FIREBASE_SERVICE_ACCOUNT_JSON: str = ""
     FIREBASE_CLIENT_EMAIL: str = ""
     FIREBASE_PRIVATE_KEY: str = ""
